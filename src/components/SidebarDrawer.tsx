@@ -18,7 +18,8 @@ import {
   FolderKanban,
   Fingerprint,
   Globe,
-  KeyRound
+  KeyRound,
+  Shield
 } from 'lucide-react';
 import { ActiveTab, UserRoleMode } from '../types';
 import { Language, translations } from '../i18n/translations';
@@ -170,6 +171,23 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
 
         {/* Navigation Items */}
         <div className="flex-1 px-4 py-2 space-y-4">
+          {/* Admin Back-End Hub */}
+          {roleMode === 'admin' && (
+            <div>
+              <button
+                onClick={() => handleSelect('admin_hub')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${
+                  activeTab === 'admin_hub'
+                    ? 'bg-gradient-to-r from-amber-500 to-indigo-600 text-white shadow-md shadow-amber-500/25'
+                    : 'text-amber-700 dark:text-amber-400 bg-amber-50/70 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 border border-amber-200/60 dark:border-amber-900/60'
+                }`}
+              >
+                <Shield className="w-5 h-5" />
+                <span>{t.adminHub}</span>
+              </button>
+            </div>
+          )}
+
           {/* Main Dashboard */}
           <div>
             <button

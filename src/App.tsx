@@ -13,6 +13,7 @@ import {
 } from './types';
 import {
   fetchAppState,
+  INITIAL_FALLBACK_STATE,
   clockInAPI,
   clockOutAPI,
   toggleBreakAPI,
@@ -48,6 +49,9 @@ import { LocationsScreen } from './components/LocationsScreen';
 import { LoginScreen } from './components/LoginScreen';
 import { VoiceAssistantModal } from './components/VoiceAssistantModal';
 import { AccountSettingsModal } from './components/AccountSettingsModal';
+import { AdminManagementHub } from './components/AdminManagementHub';
+import { AlertsSettingsModal } from './components/AlertsSettingsModal';
+import { OfflineIndicator } from './components/OfflineIndicator';
 import { translations } from './i18n/translations';
 import { Mic, Sparkles } from 'lucide-react';
 
@@ -59,6 +63,7 @@ export default function App() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
   const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
+  const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const [theme, setTheme] = useState<'auto' | 'light' | 'dark'>('light');
   const [lang, setLang] = useState<Language>('en');
 
@@ -108,19 +113,35 @@ export default function App() {
     }
   }, [lang]);
 
-  // Load state from backend on mount
+  // Load state from backend on mount with resilient offline fallback
   useEffect(() => {
+    let mounted = true;
     async function load() {
       try {
         const data = await fetchAppState();
-        setAppState(data);
+        if (mounted) setAppState(data || INITIAL_FALLBACK_STATE);
       } catch (err) {
         console.error('Failed to load initial state:', err);
+        if (mounted) setAppState(INITIAL_FALLBACK_STATE);
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     }
+
+    // Safety fallback timeout: never hang more than 1.2 seconds
+    const safetyTimer = setTimeout(() => {
+      if (mounted) {
+        setAppState(prev => prev || INITIAL_FALLBACK_STATE);
+        setLoading(false);
+      }
+    }, 1200);
+
     load();
+
+    return () => {
+      mounted = false;
+      clearTimeout(safetyTimer);
+    };
   }, []);
 
   // Handlers for Clock In / Out
@@ -423,9 +444,25 @@ export default function App() {
   else if (activeTab === 'departments') screenTitle = t.departments;
   else if (activeTab === 'leave') screenTitle = t.leave;
   else if (activeTab === 'locations') screenTitle = t.locations;
+  else if (activeTab === 'admin_hub') screenTitle = t.adminHub;
 
   const renderActiveScreen = () => {
     switch (activeTab) {
+      case 'admin_hub':
+        return (
+          <AdminManagementHub
+            appState={appState}
+            onRefreshState={async () => {
+              try {
+                const data = await fetchAppState();
+                setAppState(data);
+              } catch (e) {
+                console.error(e);
+              }
+            }}
+            lang={lang}
+          />
+        );
       case 'dashboard':
         return roleMode === 'admin' ? (
           <AdminDashboard

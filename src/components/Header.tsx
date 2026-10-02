@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Menu, Bell, UserCheck, Shield, Mic, Globe, LogOut, KeyRound } from 'lucide-react';
+import { Menu, Bell, UserCheck, Shield, Mic, Globe, LogOut, KeyRound, Smartphone } from 'lucide-react';
 import { UserRoleMode } from '../types';
 import { Language, translations } from '../i18n/translations';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface HeaderProps {
   title: string;
@@ -13,6 +14,7 @@ interface HeaderProps {
   onOpenVoiceAssistant: () => void;
   onSignOut: () => void;
   onOpenAccountSettings?: () => void;
+  onOpenAlerts?: () => void;
   currentUser?: any;
   unreadCount?: number;
 }
@@ -27,6 +29,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenVoiceAssistant,
   onSignOut,
   onOpenAccountSettings,
+  onOpenAlerts,
   currentUser,
   unreadCount = 2
 }) => {
@@ -144,6 +147,21 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
           </div>
+
+          {/* PWA Install Button */}
+          <PWAInstallButton lang={lang} variant="compact" />
+
+          {/* Telegram & WebPush Alerts Settings Button */}
+          {onOpenAlerts && (
+            <button
+              onClick={onOpenAlerts}
+              aria-label="Alerts & Telegram Integration"
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-sky-600 dark:text-sky-400 transition-colors"
+              title="Alerts, WebPush & Telegram Bot"
+            >
+              <Bell className="w-5 h-5" />
+            </button>
+          )}
 
           {/* Account & Password Settings */}
           {onOpenAccountSettings && (

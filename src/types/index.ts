@@ -179,6 +179,7 @@ export type ActiveTab =
   | 'departments'
   | 'leave'
   | 'locations'
-  | 'reports';
+  | 'reports'
+  | 'admin_hub';
 
 export type UserRoleMode = 'admin' | 'employee';

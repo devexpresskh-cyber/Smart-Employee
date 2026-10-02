@@ -10,7 +10,8 @@ import {
   TrendingUp,
   Building,
   FileSpreadsheet,
-  ChevronRight
+  ChevronRight,
+  Shield
 } from 'lucide-react';
 import { AppMetrics, ActiveTab, AttendanceRecord, Language } from '../types';
 import { translations } from '../i18n/translations';
@@ -59,6 +60,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             {t.companyName} · {lang === 'km' ? 'អ្នកគ្រប់គ្រងប្រព័ន្ធ' : 'Company Admin'}
           </p>
         </div>
+
+        <button
+          onClick={() => onNavigateTab('admin_hub')}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-600 hover:to-indigo-700 text-white text-xs font-bold shadow-lg shadow-amber-500/20 active:scale-95 transition-all shrink-0"
+        >
+          <Shield className="w-4 h-4 text-amber-200" />
+          <span>{lang === 'km' ? 'មជ្ឈមណ្ឌលគ្រប់គ្រង Back-End' : 'Admin Back-End Control'}</span>
+        </button>
       </div>
 
       {/* 4-col Metric KPI Grid matching screenshot 6 */}

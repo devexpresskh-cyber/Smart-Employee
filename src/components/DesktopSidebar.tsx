@@ -229,6 +229,20 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
         {/* Primary Core Sections */}
         <div className="space-y-1">
+          {roleMode === 'admin' && (
+            <button
+              onClick={() => onSelectTab('admin_hub')}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all mb-2 ${
+                activeTab === 'admin_hub'
+                  ? 'bg-gradient-to-r from-amber-500 to-indigo-600 text-white shadow-md shadow-amber-500/25'
+                  : 'text-amber-700 dark:text-amber-400 bg-amber-50/70 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 border border-amber-200/60 dark:border-amber-900/60'
+              }`}
+            >
+              <Shield className="w-4 h-4 shrink-0" />
+              <span className="truncate">{t.adminHub}</span>
+            </button>
+          )}
+
           <button
             onClick={() => onSelectTab('dashboard')}
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all ${

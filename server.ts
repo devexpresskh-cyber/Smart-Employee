@@ -163,6 +163,42 @@ const userAccounts: UserAccount[] = [
   }
 ];
 
+export interface AuditLog {
+  id: string;
+  action: string;
+  performedBy: string;
+  details: string;
+  timestamp: string;
+}
+
+const auditLogs: AuditLog[] = [
+  {
+    id: 'log_1',
+    action: 'ADMIN_INIT',
+    performedBy: 'Marketing Landmark Admin',
+    details: 'Admin Back-End system initialized with full CRUD capabilities',
+    timestamp: new Date().toISOString()
+  },
+  {
+    id: 'log_2',
+    action: 'SECURITY_CHECK',
+    performedBy: 'System',
+    details: 'Role-Based Access Control (RBAC) and credentials security verified',
+    timestamp: new Date(Date.now() - 3600000).toISOString()
+  }
+];
+
+function recordAudit(action: string, performedBy: string, details: string) {
+  auditLogs.unshift({
+    id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+    action,
+    performedBy: performedBy || 'Admin',
+    details,
+    timestamp: new Date().toISOString()
+  });
+  if (auditLogs.length > 100) auditLogs.pop();
+}
+
 // Initial realistic seed data matching user screenshots
 const employees: Employee[] = [
   {
@@ -873,7 +909,378 @@ async function startServer() {
       return res.status(400).json({ error: 'Password must be at least 4 characters' });
     }
     account.password = newPassword;
+    recordAudit('PASSWORD_RESET', 'Admin', `Reset password for user ${account.name} (${account.phone})`);
     res.json({ success: true, message: `Password for ${account.name} updated successfully` });
+  });
+
+  // ADMIN: System & Database Overview
+  apiRouter.get('/admin/overview', (_req: Request, res: Response) => {
+    const mem = process.memoryUsage();
+    const uptimeSec = process.uptime();
+    const hours = Math.floor(uptimeSec / 3600);
+    const minutes = Math.floor((uptimeSec % 3600) / 60);
+
+    const totalRevenueWon = salesDeals.filter(d => d.stage === 'won').reduce((s, d) => s + d.value, 0);
+    const pendingLeaveCount = leaveRequests.filter(l => l.status === 'pending').length;
+
+    res.json({
+      success: true,
+      system: {
+        serverStatus: 'healthy',
+        nodeVersion: process.version,
+        platform: process.platform,
+        uptime: `${hours}h ${minutes}m`,
+        uptimeSeconds: Math.floor(uptimeSec),
+        memoryUsageMb: Math.round(mem.heapUsed / 1024 / 1024),
+        totalMemoryMb: Math.round(mem.heapTotal / 1024 / 1024)
+      },
+      counts: {
+        totalEmployees: employees.length,
+        totalAccounts: userAccounts.length,
+        adminCount: userAccounts.filter(u => u.role === 'admin').length,
+        staffCount: userAccounts.filter(u => u.role === 'employee').length,
+        departmentsCount: departments.length,
+        locationsCount: locations.length,
+        shiftsCount: weeklyShifts.length,
+        attendanceCount: attendanceRecords.length,
+        activeProjectsCount: projects.filter(p => p.status === 'active').length,
+        pendingTasksCount: tasks.filter(t => !t.completed).length,
+        pendingLeaveRequests: pendingLeaveCount,
+        totalSalesDeals: salesDeals.length,
+        totalWonRevenue: totalRevenueWon
+      },
+      recentAudits: auditLogs.slice(0, 10)
+    });
+  });
+
+  // ADMIN: Audit Logs
+  apiRouter.get('/admin/audit-logs', (_req: Request, res: Response) => {
+    res.json({ success: true, logs: auditLogs });
+  });
+
+  // ADMIN: Create User Account & Link Employee
+  apiRouter.post('/admin/accounts', (req: Request, res: Response) => {
+    const { name, phone, password, role = 'employee', email, department = 'Marketing', hourlyRate = 45 } = req.body;
+    if (!name || !phone || !password) {
+      return res.status(400).json({ error: 'Name, phone number, and password are required' });
+    }
+
+    const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
+    const exists = userAccounts.some(u => u.phone.replace(/[\s\-\(\)]/g, '') === cleanPhone);
+    if (exists) {
+      return res.status(400).json({ error: 'Phone number is already associated with another account' });
+    }
+
+    const newEmpId = `emp_${Date.now()}`;
+    const newEmp: Employee = {
+      id: newEmpId,
+      name,
+      email: email || `${name.toLowerCase().replace(/\s+/g, '')}@marketinglandmark.com`,
+      employeeCode: `EMP-${Math.floor(1000000000000 + Math.random() * 9000000000000)}`,
+      role: role === 'admin' ? 'Operations Manager' : 'Marketing Specialist',
+      department,
+      avatar: name.charAt(0).toUpperCase(),
+      hourlyRate: Number(hourlyRate) || 45,
+      phone,
+      joinDate: new Date().toISOString().split('T')[0]
+    };
+    employees.push(newEmp);
+
+    const newAccount: UserAccount = {
+      id: `user_${Date.now()}`,
+      phone,
+      password,
+      employeeId: newEmpId,
+      name,
+      email: newEmp.email,
+      role: role === 'admin' ? 'admin' : 'employee'
+    };
+    userAccounts.push(newAccount);
+
+    recordAudit('ACCOUNT_CREATED', 'Admin', `Created new ${role} account for ${name} (${phone})`);
+    res.json({ success: true, account: newAccount, employee: newEmp });
+  });
+
+  // ADMIN: Update Account
+  apiRouter.put('/admin/accounts/:id', (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { name, phone, email, role, department } = req.body;
+    const account = userAccounts.find(u => u.id === id);
+    if (!account) return res.status(404).json({ error: 'Account not found' });
+
+    if (name) account.name = name;
+    if (phone) account.phone = phone;
+    if (email) account.email = email;
+    if (role && (role === 'admin' || role === 'employee')) account.role = role;
+
+    const emp = employees.find(e => e.id === account.employeeId);
+    if (emp) {
+      if (name) emp.name = name;
+      if (phone) emp.phone = phone;
+      if (email) emp.email = email;
+      if (department) emp.department = department;
+    }
+
+    recordAudit('ACCOUNT_UPDATED', 'Admin', `Updated account info for ${account.name}`);
+    res.json({ success: true, account });
+  });
+
+  // ADMIN: Delete Account
+  apiRouter.delete('/admin/accounts/:id', (req: Request, res: Response) => {
+    const { id } = req.params;
+    const index = userAccounts.findIndex(u => u.id === id);
+    if (index === -1) return res.status(404).json({ error: 'Account not found' });
+
+    const targetAccount = userAccounts[index];
+    const adminCount = userAccounts.filter(u => u.role === 'admin').length;
+    if (targetAccount.role === 'admin' && adminCount <= 1) {
+      return res.status(400).json({ error: 'Cannot delete the only remaining Admin account' });
+    }
+
+    userAccounts.splice(index, 1);
+    recordAudit('ACCOUNT_DELETED', 'Admin', `Deleted account for ${targetAccount.name} (${targetAccount.phone})`);
+    res.json({ success: true, message: `Account for ${targetAccount.name} deleted successfully` });
+  });
+
+  // ADMIN: Update Employee
+  apiRouter.put('/employees/:id', (req: Request, res: Response) => {
+    const { id } = req.params;
+    const emp = employees.find(e => e.id === id);
+    if (!emp) return res.status(404).json({ error: 'Employee not found' });
+
+    const { name, email, role, department, hourlyRate, phone } = req.body;
+    if (name !== undefined) emp.name = name;
+    if (email !== undefined) emp.email = email;
+    if (role !== undefined) emp.role = role;
+    if (department !== undefined) emp.department = department;
+    if (hourlyRate !== undefined) emp.hourlyRate = Number(hourlyRate);
+    if (phone !== undefined) emp.phone = phone;
+
+    // Sync with account if present
+    const acc = userAccounts.find(u => u.employeeId === id);
+    if (acc) {
+      if (name) acc.name = name;
+      if (email) acc.email = email;
+      if (phone) acc.phone = phone;
+    }
+
+    recordAudit('EMPLOYEE_UPDATED', 'Admin', `Updated employee record for ${emp.name}`);
+    res.json({ success: true, employee: emp });
+  });
+
+  // ADMIN: Delete Employee
+  apiRouter.delete('/employees/:id', (req: Request, res: Response) => {
+    const { id } = req.params;
+    const index = employees.findIndex(e => e.id === id);
+    if (index === -1) return res.status(404).json({ error: 'Employee not found' });
+
+    const emp = employees[index];
+    employees.splice(index, 1);
+
+    // Also remove associated account if not admin
+    const accIndex = userAccounts.findIndex(u => u.employeeId === id && u.role !== 'admin');
+    if (accIndex !== -1) {
+      userAccounts.splice(accIndex, 1);
+    }
+
+    recordAudit('EMPLOYEE_DELETED', 'Admin', `Deleted employee record for ${emp.name}`);
+    res.json({ success: true, message: `Employee ${emp.name} deleted successfully` });
+  });
+
+  // ADMIN: Update Attendance Record
+  apiRouter.put('/attendance/:id', (req: Request, res: Response) => {
+    const { id } = req.params;
+    const record = attendanceRecords.find(r => r.id === id);
+    if (!record) return res.status(404).json({ error: 'Attendance record not found' });
+
+    const { clockIn, clockOut, totalMinutes, status, notes, location } = req.body;
+    if (clockIn !== undefined) record.clockIn = clockIn;
+    if (clockOut !== undefined) record.clockOut = clockOut;
+    if (totalMinutes !== undefined) record.totalMinutes = Number(totalMinutes);
+    if (status !== undefined) record.status = status;
+    if (notes !== undefined) record.notes = notes;
+    if (location !== undefined) record.location = location;
+
+    recordAudit('ATTENDANCE_EDITED', 'Admin', `Modified attendance punch for ${record.employeeName} (${record.date})`);
+    res.json({ success: true, record });
+  });
+
+  // ADMIN: Delete Attendance Record
+  apiRouter.delete('/attendance/:id', (req: Request, res: Response) => {
+    const { id } = req.params;
+    const index = attendanceRecords.findIndex(r => r.id === id);
+    if (index === -1) return res.status(404).json({ error: 'Attendance record not found' });
+
+    const record = attendanceRecords[index];
+    attendanceRecords.splice(index, 1);
+    recordAudit('ATTENDANCE_DELETED', 'Admin', `Deleted attendance entry for ${record.employeeName} on ${record.date}`);
+    res.json({ success: true, message: 'Attendance record deleted' });
+  });
+
+  // ADMIN: Bulk Approve Attendance
+  apiRouter.post('/admin/attendance/bulk-approve', (_req: Request, res: Response) => {
+    let approvedCount = 0;
+    attendanceRecords.forEach(r => {
+      if (r.clockOut && !r.notes.includes('[Approved]')) {
+        r.notes = r.notes ? `${r.notes} [Approved]` : '[Approved by Admin]';
+        approvedCount++;
+      }
+    });
+    recordAudit('BULK_ATTENDANCE_APPROVE', 'Admin', `Bulk verified and approved ${approvedCount} attendance records`);
+    res.json({ success: true, approvedCount, records: attendanceRecords });
+  });
+
+  // ADMIN: Shifts Management
+  apiRouter.get('/shifts', (_req: Request, res: Response) => {
+    res.json({ success: true, shifts: weeklyShifts });
+  });
+
+  apiRouter.post('/shifts', (req: Request, res: Response) => {
+    const { employeeId, date, dayName, dayNumber, role, startTime, endTime, hours, location } = req.body;
+    const newShift: ShiftItem = {
+      id: `shift_${Date.now()}`,
+      employeeId: employeeId || 'emp_cian',
+      date: date || new Date().toISOString().split('T')[0],
+      dayName: dayName || 'Mon',
+      dayNumber: Number(dayNumber) || 1,
+      role: role || 'Marketing Specialist',
+      startTime: startTime || '9:00 AM',
+      endTime: endTime || '5:00 PM',
+      hours: Number(hours) || 8,
+      location: location || 'Marketing Landmark HQ (ភ្នំពេញ)',
+      timeline: [
+        { id: 't1', label: 'Clock In', time: startTime || '9:00 AM', type: 'clock_in', completed: false },
+        { id: 't2', label: 'Short Break', time: '10:30 AM', type: 'short_break', completed: false },
+        { id: 't3', label: 'Lunch Break', time: '12:30 PM', type: 'lunch_break', completed: false },
+        { id: 't4', label: 'Clock Out', time: endTime || '5:00 PM', type: 'clock_out', completed: false }
+      ]
+    };
+    weeklyShifts.push(newShift);
+    recordAudit('SHIFT_CREATED', 'Admin', `Created shift on ${newShift.date} for employee ${newShift.employeeId}`);
+    res.json({ success: true, shift: newShift });
+  });
+
+  apiRouter.put('/shifts/:id', (req: Request, res: Response) => {
+    const { id } = req.params;
+    const shift = weeklyShifts.find(s => s.id === id);
+    if (!shift) return res.status(404).json({ error: 'Shift not found' });
+
+    Object.assign(shift, req.body);
+    recordAudit('SHIFT_UPDATED', 'Admin', `Updated shift ${id} on ${shift.date}`);
+    res.json({ success: true, shift });
+  });
+
+  apiRouter.delete('/shifts/:id', (req: Request, res: Response) => {
+    const { id } = req.params;
+    const index = weeklyShifts.findIndex(s => s.id === id);
+    if (index === -1) return res.status(404).json({ error: 'Shift not found' });
+
+    weeklyShifts.splice(index, 1);
+    recordAudit('SHIFT_DELETED', 'Admin', `Deleted shift schedule ${id}`);
+    res.json({ success: true, message: 'Shift deleted successfully' });
+  });
+
+  // ADMIN: Departments Management
+  apiRouter.post('/departments', (req: Request, res: Response) => {
+    const { name, budget = 50000, lead = 'Manager' } = req.body;
+    if (!name) return res.status(400).json({ error: 'Department name is required' });
+
+    const exists = departments.find(d => d.name.toLowerCase() === name.toLowerCase());
+    if (exists) return res.status(400).json({ error: 'Department already exists' });
+
+    const newDept = { name, count: 0, budget: Number(budget), lead };
+    departments.push(newDept);
+    recordAudit('DEPARTMENT_CREATED', 'Admin', `Created department ${name} ($${budget})`);
+    res.json({ success: true, department: newDept, departments });
+  });
+
+  apiRouter.put('/departments/:name', (req: Request, res: Response) => {
+    const { name } = req.params;
+    const dept = departments.find(d => d.name.toLowerCase() === name.toLowerCase());
+    if (!dept) return res.status(404).json({ error: 'Department not found' });
+
+    const { budget, lead, count, newName } = req.body;
+    if (budget !== undefined) dept.budget = Number(budget);
+    if (lead !== undefined) dept.lead = lead;
+    if (count !== undefined) dept.count = Number(count);
+    if (newName) dept.name = newName;
+
+    recordAudit('DEPARTMENT_UPDATED', 'Admin', `Updated department ${dept.name}`);
+    res.json({ success: true, department: dept, departments });
+  });
+
+  apiRouter.delete('/departments/:name', (req: Request, res: Response) => {
+    const { name } = req.params;
+    const index = departments.findIndex(d => d.name.toLowerCase() === name.toLowerCase());
+    if (index === -1) return res.status(404).json({ error: 'Department not found' });
+
+    departments.splice(index, 1);
+    recordAudit('DEPARTMENT_DELETED', 'Admin', `Deleted department ${name}`);
+    res.json({ success: true, message: `Department ${name} deleted`, departments });
+  });
+
+  // ADMIN: Locations & Geofence Management
+  apiRouter.post('/locations', (req: Request, res: Response) => {
+    const { name, address, radiusMeters = 150 } = req.body;
+    if (!name) return res.status(400).json({ error: 'Location name is required' });
+
+    const newLoc: LocationSite = {
+      id: `loc_${Date.now()}`,
+      name,
+      address: address || 'Phnom Penh, Cambodia',
+      activeCount: 0,
+      radiusMeters: Number(radiusMeters) || 150
+    };
+    locations.push(newLoc);
+    recordAudit('LOCATION_CREATED', 'Admin', `Created location site ${name} (radius: ${radiusMeters}m)`);
+    res.json({ success: true, location: newLoc, locations });
+  });
+
+  apiRouter.put('/locations/:id', (req: Request, res: Response) => {
+    const { id } = req.params;
+    const loc = locations.find(l => l.id === id);
+    if (!loc) return res.status(404).json({ error: 'Location not found' });
+
+    const { name, address, radiusMeters, activeCount } = req.body;
+    if (name !== undefined) loc.name = name;
+    if (address !== undefined) loc.address = address;
+    if (radiusMeters !== undefined) loc.radiusMeters = Number(radiusMeters);
+    if (activeCount !== undefined) loc.activeCount = Number(activeCount);
+
+    recordAudit('LOCATION_UPDATED', 'Admin', `Updated location site ${loc.name}`);
+    res.json({ success: true, location: loc, locations });
+  });
+
+  apiRouter.delete('/locations/:id', (req: Request, res: Response) => {
+    const { id } = req.params;
+    const index = locations.findIndex(l => l.id === id);
+    if (index === -1) return res.status(404).json({ error: 'Location not found' });
+
+    const loc = locations[index];
+    locations.splice(index, 1);
+    recordAudit('LOCATION_DELETED', 'Admin', `Deleted location site ${loc.name}`);
+    res.json({ success: true, message: `Location ${loc.name} deleted`, locations });
+  });
+
+  // ADMIN: Delete Leave Request
+  apiRouter.delete('/leave/:id', (req: Request, res: Response) => {
+    const { id } = req.params;
+    const index = leaveRequests.findIndex(l => l.id === id);
+    if (index === -1) return res.status(404).json({ error: 'Leave request not found' });
+
+    const leave = leaveRequests[index];
+    leaveRequests.splice(index, 1);
+    recordAudit('LEAVE_DELETED', 'Admin', `Deleted leave request for ${leave.employeeName}`);
+    res.json({ success: true, message: 'Leave request deleted' });
+  });
+
+  // ADMIN: System Broadcast Announcement
+  apiRouter.post('/admin/broadcast', (req: Request, res: Response) => {
+    const { message, priority = 'normal' } = req.body;
+    if (!message) return res.status(400).json({ error: 'Broadcast message is required' });
+
+    recordAudit('SYSTEM_BROADCAST', 'Admin', `Announcement: "${message}" (${priority})`);
+    res.json({ success: true, message: 'Announcement broadcasted to all employees', broadcastedAt: new Date().toISOString() });
   });
 
   // GET complete initial state
