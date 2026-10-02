@@ -175,3 +175,61 @@ export async function addManualAttendanceAPI(data: any) {
   if (!res.ok) throw new Error('Failed to add manual attendance');
   return res.json();
 }
+
+export async function updateProfileAPI(data: any) {
+  const res = await fetch('/api/auth/profile', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to update profile');
+  }
+  return res.json();
+}
+
+export async function updatePasswordAPI(data: { userId?: string; phone?: string; currentPassword?: string; newPassword: string }) {
+  const res = await fetch('/api/auth/password', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to update password');
+  }
+  return res.json();
+}
+
+export async function resetPasswordAPI(phone: string, newPassword: string) {
+  const res = await fetch('/api/auth/reset-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone, newPassword })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to reset password');
+  }
+  return res.json();
+}
+
+export async function fetchAccountsAPI() {
+  const res = await fetch('/api/accounts');
+  if (!res.ok) throw new Error('Failed to fetch accounts');
+  return res.json();
+}
+
+export async function updateAccountPasswordAPI(id: string, newPassword: string) {
+  const res = await fetch(`/api/accounts/${id}/password`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ newPassword })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to update account password');
+  }
+  return res.json();
+}

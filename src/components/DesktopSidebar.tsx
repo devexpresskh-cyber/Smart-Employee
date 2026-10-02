@@ -22,7 +22,8 @@ import {
   Shield,
   UserCheck,
   CheckCircle2,
-  ChevronDown
+  ChevronDown,
+  KeyRound
 } from 'lucide-react';
 import { ActiveTab, UserRoleMode } from '../types';
 import { Language, translations } from '../i18n/translations';
@@ -38,6 +39,7 @@ interface DesktopSidebarProps {
   onToggleLang: () => void;
   onOpenVoiceAssistant: () => void;
   onSignOut: () => void;
+  onOpenAccountSettings?: () => void;
   currentUser?: any;
   unreadCount?: number;
 }
@@ -53,6 +55,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   onToggleLang,
   onOpenVoiceAssistant,
   onSignOut,
+  onOpenAccountSettings,
   currentUser,
   unreadCount = 2
 }) => {
@@ -193,6 +196,18 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               {lang === 'km' ? 'ប្តូរ' : 'Switch'}
             </span>
           </button>
+
+          {/* Manage Account & Password Button */}
+          {onOpenAccountSettings && (
+            <button
+              onClick={onOpenAccountSettings}
+              className="w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 text-[11px] font-bold border border-blue-200/60 dark:border-blue-800/60 transition-colors shadow-2xs"
+              title={t.manageAccount}
+            >
+              <KeyRound className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              <span>{t.manageAccount}</span>
+            </button>
+          )}
         </div>
       </div>
 

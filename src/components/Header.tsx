@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, Bell, UserCheck, Shield, Mic, Globe, LogOut } from 'lucide-react';
+import { Menu, Bell, UserCheck, Shield, Mic, Globe, LogOut, KeyRound } from 'lucide-react';
 import { UserRoleMode } from '../types';
 import { Language, translations } from '../i18n/translations';
 
@@ -12,6 +12,7 @@ interface HeaderProps {
   onToggleLang: () => void;
   onOpenVoiceAssistant: () => void;
   onSignOut: () => void;
+  onOpenAccountSettings?: () => void;
   currentUser?: any;
   unreadCount?: number;
 }
@@ -25,6 +26,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleLang,
   onOpenVoiceAssistant,
   onSignOut,
+  onOpenAccountSettings,
   currentUser,
   unreadCount = 2
 }) => {
@@ -142,6 +144,18 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
           </div>
+
+          {/* Account & Password Settings */}
+          {onOpenAccountSettings && (
+            <button
+              onClick={onOpenAccountSettings}
+              aria-label="Manage Account & Password"
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
+              title={t.manageAccount}
+            >
+              <KeyRound className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            </button>
+          )}
         </div>
       </div>
     </header>

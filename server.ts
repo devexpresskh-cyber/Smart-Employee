@@ -764,6 +764,118 @@ async function startServer() {
     });
   });
 
+  // AUTH: Update Profile (Manage Account)
+  apiRouter.put('/auth/profile', (req: Request, res: Response) => {
+    const { userId, phone, name, email, department, role } = req.body;
+    let account = userAccounts.find(u => u.id === userId || (phone && u.phone.replace(/[\s\-\(\)]/g, '') === phone.replace(/[\s\-\(\)]/g, '')));
+    if (!account && userAccounts.length > 0) {
+      account = userAccounts[0];
+    }
+    if (!account) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+
+    if (name) account.name = name;
+    if (email) account.email = email;
+    if (phone) account.phone = phone;
+    if (role && (role === 'admin' || role === 'employee')) account.role = role;
+
+    // Also update corresponding employee record if present
+    const emp = employees.find(e => e.id === account!.employeeId || e.name === account!.name);
+    if (emp) {
+      if (name) emp.name = name;
+      if (email) emp.email = email;
+      if (phone) emp.phone = phone;
+      if (department) emp.department = department;
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: account.id,
+        name: account.name,
+        email: account.email,
+        phone: account.phone,
+        role: account.role,
+        employee: emp || null
+      }
+    });
+  });
+
+  // AUTH: Update Password (Manage Password)
+  apiRouter.put('/auth/password', (req: Request, res: Response) => {
+    const { userId, phone, currentPassword, newPassword } = req.body;
+    if (!newPassword || newPassword.length < 4) {
+      return res.status(400).json({ error: 'New password must be at least 4 characters long' });
+    }
+
+    let account = userAccounts.find(u => u.id === userId || (phone && u.phone.replace(/[\s\-\(\)]/g, '') === phone.replace(/[\s\-\(\)]/g, '')));
+    if (!account && userAccounts.length > 0) {
+      account = userAccounts[0];
+    }
+    if (!account) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+
+    if (currentPassword && account.password !== currentPassword) {
+      return res.status(401).json({ error: 'Current password does not match' });
+    }
+
+    account.password = newPassword;
+    res.json({ success: true, message: 'Password updated successfully' });
+  });
+
+  // AUTH: Reset Password (Forgot password flow)
+  apiRouter.post('/auth/reset-password', (req: Request, res: Response) => {
+    const { phone, newPassword } = req.body;
+    if (!phone || !newPassword) {
+      return res.status(400).json({ error: 'Phone number and new password are required' });
+    }
+
+    const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
+    const account = userAccounts.find(
+      u => u.phone.replace(/[\s\-\(\)]/g, '') === cleanPhone ||
+           cleanPhone.endsWith(u.phone.slice(-8))
+    );
+
+    if (!account) {
+      return res.status(404).json({ error: 'No account registered with this phone number' });
+    }
+
+    account.password = newPassword;
+    res.json({ success: true, message: 'Password has been reset successfully. You can now login.' });
+  });
+
+  // ACCOUNTS: Get all accounts (for account management)
+  apiRouter.get('/accounts', (_req: Request, res: Response) => {
+    const safeAccounts = userAccounts.map(u => {
+      const emp = employees.find(e => e.id === u.employeeId);
+      return {
+        id: u.id,
+        name: u.name,
+        phone: u.phone,
+        email: u.email,
+        role: u.role,
+        department: emp?.department || 'Marketing',
+        employeeId: u.employeeId
+      };
+    });
+    res.json({ success: true, accounts: safeAccounts });
+  });
+
+  // ACCOUNTS: Admin updates account password or details
+  apiRouter.put('/accounts/:id/password', (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { newPassword } = req.body;
+    const account = userAccounts.find(u => u.id === id);
+    if (!account) return res.status(404).json({ error: 'Account not found' });
+    if (!newPassword || newPassword.length < 4) {
+      return res.status(400).json({ error: 'Password must be at least 4 characters' });
+    }
+    account.password = newPassword;
+    res.json({ success: true, message: `Password for ${account.name} updated successfully` });
+  });
+
   // GET complete initial state
   apiRouter.get('/state', (_req: Request, res: Response) => {
     const totalEmployees = employees.length;

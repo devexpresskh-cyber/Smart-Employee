@@ -47,6 +47,7 @@ import { LeaveScreen } from './components/LeaveScreen';
 import { LocationsScreen } from './components/LocationsScreen';
 import { LoginScreen } from './components/LoginScreen';
 import { VoiceAssistantModal } from './components/VoiceAssistantModal';
+import { AccountSettingsModal } from './components/AccountSettingsModal';
 import { translations } from './i18n/translations';
 import { Mic, Sparkles } from 'lucide-react';
 
@@ -57,6 +58,7 @@ export default function App() {
   const [roleMode, setRoleMode] = useState<UserRoleMode>('employee');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
+  const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
   const [theme, setTheme] = useState<'auto' | 'light' | 'dark'>('light');
   const [lang, setLang] = useState<Language>('en');
 
@@ -536,6 +538,7 @@ export default function App() {
         onToggleLang={toggleLanguage}
         onOpenVoiceAssistant={() => setIsVoiceOpen(true)}
         onSignOut={handleSignOut}
+        onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
         currentUser={currentUser}
       />
 
@@ -551,6 +554,7 @@ export default function App() {
           onToggleLang={toggleLanguage}
           onOpenVoiceAssistant={() => setIsVoiceOpen(true)}
           onSignOut={handleSignOut}
+          onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
           currentUser={currentUser}
         />
 
@@ -568,6 +572,8 @@ export default function App() {
           onToggleLang={toggleLanguage}
           onOpenVoiceAssistant={() => setIsVoiceOpen(true)}
           onSignOut={handleSignOut}
+          onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
+          currentUser={currentUser}
         />
 
         {/* Screen Viewport with Full Width Content Layout */}
@@ -602,6 +608,18 @@ export default function App() {
         onStateUpdated={(projects, tasks) => {
           setAppState(prev => (prev ? { ...prev, projects, tasks } : prev));
         }}
+      />
+
+      {/* Manage Account & Password Modal */}
+      <AccountSettingsModal
+        isOpen={isAccountSettingsOpen}
+        onClose={() => setIsAccountSettingsOpen(false)}
+        currentUser={currentUser}
+        onUpdateUser={(updated) => {
+          setCurrentUser(updated);
+        }}
+        lang={lang}
+        roleMode={roleMode}
       />
     </div>
   );

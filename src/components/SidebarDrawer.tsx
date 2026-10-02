@@ -17,7 +17,8 @@ import {
   CalendarDays,
   FolderKanban,
   Fingerprint,
-  Globe
+  Globe,
+  KeyRound
 } from 'lucide-react';
 import { ActiveTab, UserRoleMode } from '../types';
 import { Language, translations } from '../i18n/translations';
@@ -35,6 +36,8 @@ interface SidebarDrawerProps {
   onToggleLang: () => void;
   onOpenVoiceAssistant: () => void;
   onSignOut: () => void;
+  onOpenAccountSettings?: () => void;
+  currentUser?: any;
 }
 
 export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
@@ -49,7 +52,9 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   lang,
   onToggleLang,
   onOpenVoiceAssistant,
-  onSignOut
+  onSignOut,
+  onOpenAccountSettings,
+  currentUser
 }) => {
   const t = translations[lang];
   if (!isOpen) return null;
@@ -120,6 +125,46 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             >
               {lang === 'en' ? 'ខ្មែរ' : 'EN'}
             </button>
+          </div>
+
+          {/* User Account Card */}
+          <div className="mt-3 p-3 rounded-2xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/60 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                  {currentUser?.name?.charAt(0) || 'C'}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                    {currentUser?.name || 'Cian'}
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-mono truncate">
+                    {currentUser?.phone || '+855 12 888 999'}
+                  </div>
+                </div>
+              </div>
+
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                roleMode === 'admin'
+                  ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400'
+                  : 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400'
+              }`}>
+                {roleMode === 'admin' ? 'Admin' : 'Staff'}
+              </span>
+            </div>
+
+            {onOpenAccountSettings && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenAccountSettings();
+                }}
+                className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 hover:bg-blue-50 text-[11px] font-bold border border-blue-200 dark:border-blue-800 transition-colors shadow-2xs"
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>{t.manageAccount}</span>
+              </button>
+            )}
           </div>
         </div>
 
